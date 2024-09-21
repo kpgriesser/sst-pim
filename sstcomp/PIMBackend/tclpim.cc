@@ -13,8 +13,8 @@ namespace SST::PIM {
 
 TCLPIM::TCLPIM( uint64_t node, SST::Output* o ) : PIM( o ) {
   // simulator defined identifier
-  id          = ( uint64_t( PIM_TYPE_TEST ) << 56 ) | ( node << 12 );
-  spdArray[0] = id;
+  id          = ( uint64_t( PIM_TYPE_TCL ) << 56 ) | ( node << 12 );
+  sramArray[0] = id;
   output->verbose( CALL_INFO, 1, 0, "Creating TCLPIM node=%" PRId64 " id=0x%" PRIx64 "\n", node, id );
   // mmio decoder
   pimDecoder = new PIMDecoder( node );
@@ -55,6 +55,12 @@ bool TCLPIM::isMMIO( uint64_t addr ) {
   return inf.isIO;
 }
 
+PIMDecodeInfo TCLPIM::getDecodeInfo(uint64_t addr)
+{
+    assert(pimDecoder);
+    return pimDecoder->decode(addr);
+}
+
 uint64_t TCLPIM::decodeFuncNum(uint64_t a, unsigned numBytes)
 {
     // 16 functions
@@ -68,15 +74,15 @@ uint64_t TCLPIM::decodeFuncNum(uint64_t a, unsigned numBytes)
 void TCLPIM::read( Addr addr, uint64_t numBytes, std::vector<uint8_t>& payload ) {
   PIMDecodeInfo info = pimDecoder->decode( addr );
   if( info.pimAccType == PIM_ACCESS_TYPE::SRAM ) {
-    unsigned spdIndex = ( addr & 0x38ULL ) >> 3;
+    unsigned spdIndex = ( addr % SRAM_SIZE ) >> 3;
     unsigned byte     = ( addr & 0x7 );
-    assert( ( byte + numBytes ) <= 8 );  // 8 byte aligned only
-    uint8_t* p = (uint8_t*) ( &( spdArray[spdIndex] ) );
+    assert(spdIndex < sizeof(sramArray)/sizeof(uint64_t));
+    uint8_t* p = (uint8_t*) ( &( sramArray[spdIndex] ) );
     for( unsigned i = 0; i < numBytes; i++ ) {
       payload[i] = p[byte + i];
     }
     output->verbose(
-      CALL_INFO, 3, 0, "PIM 0x%" PRIx64 " IO READ SRAM A=0x%" PRIx64 " D=0x%" PRIx64 "\n", id, addr, spdArray[spdIndex]
+      CALL_INFO, 3, 0, "PIM 0x%" PRIx64 " IO READ SRAM A=0x%" PRIx64 " D=0x%" PRIx64 "\n", id, addr, sramArray[spdIndex]
     );
   } else {
     unsigned fnum = decodeFuncNum(addr, numBytes);
@@ -94,25 +100,20 @@ void TCLPIM::read( Addr addr, uint64_t numBytes, std::vector<uint8_t>& payload )
 
 void TCLPIM::write( Addr addr, uint64_t numBytes, std::vector<uint8_t>* payload ) {
   
-  output->verbose(CALL_INFO, 3, 0, "PIM 0x%" PRIx64 " IO WRITE A=0x%" PRIx64 "\n", id, addr);
+  output->verbose(CALL_INFO, 3, 0, "PIM 0x%" PRIx64 " IO WRITE A=0x%" PRIx64 "BYTES=%" PRId64 "\n", id, addr, numBytes);
 
-  // TODO: Fix elf / linker to not load these
-  if (numBytes !=8 ) {
-    output->verbose(CALL_INFO, 3, 0, "Warning: Dropping MMIO write to function handler with numBytes=%" PRIx64 "\n", numBytes );
-    return;
-  }
   PIMDecodeInfo info = pimDecoder->decode( addr );
   if( info.pimAccType == PIM_ACCESS_TYPE::SRAM ) {
-    // Eight 8-byte entries. Byte Addressable (memcpy -O0 does byte copy).
-    unsigned offset = ( addr & 0x38ULL ) >> 3;
+      // Eight 8-byte entries. Byte Addressable (memcpy -O0 does byte copy).
+    unsigned offset = ( addr % SRAM_SIZE ) >> 3;
     unsigned byte   = ( addr & 0x7 );
-    assert( ( byte + numBytes ) <= 8 );  // 8 byte aligned only
-    uint8_t* p = (uint8_t*) ( &( spdArray[offset] ) );
+    assert(offset<sizeof(sramArray)/sizeof(uint64_t));
+    uint8_t* p = (uint8_t*) ( &( sramArray[offset] ) );
     for( unsigned i = 0; i < numBytes; i++ ) {
       p[byte + i] = payload->at( i );
     }
     output->verbose(
-      CALL_INFO, 3, 0, "PIM 0x%" PRIx64 " IO WRITE SRAM A=0x%" PRIx64 " D=0x%" PRIx64 "\n", id, addr, spdArray[offset]
+      CALL_INFO, 3, 0, "PIM 0x%" PRIx64 " IO WRITE SRAM A=0x%" PRIx64 " D=0x%" PRIx64 "\n", id, addr, sramArray[offset]
     );
   } else if( info.pimAccType == PIM_ACCESS_TYPE::FUNC ) {
     // Decode function number and grab the payload
@@ -156,8 +157,8 @@ void TCLPIM::FuncState::writeFSM(uint64_t d)
         counter = 0;
         parent->output->verbose(
           CALL_INFO, 3, 0, 
-          "Starting Function[%d]( 0x%" PRIx64 " 0x%" PRIx64 " 0x%" PRIx64 "0x%" PRIx64 " 0x%" PRIx64 " 0x%" PRIx64 " 0x%" PRIx64 " 0x%" PRIx64 " )\n",
-          fnum, 
+          "Starting Function[%" PRId32 "]( 0x%" PRIx64 " 0x%" PRIx64 " 0x%" PRIx64 "0x%" PRIx64 " 0x%" PRIx64 " 0x%" PRIx64 " 0x%" PRIx64 " 0x%" PRIx64 " )\n",
+          static_cast<int>(fnum), 
           params[0], params[1], params[2], params[3],
           params[4], params[5], params[6], params[7]
         );
@@ -169,7 +170,7 @@ void TCLPIM::FuncState::writeFSM(uint64_t d)
     case FSTATE::RUNNING:
         fstate = FSTATE::DONE;
         counter = 0;
-        parent->output->verbose( CALL_INFO, 3, 0, "Function[%d] Done\n", fnum );
+        parent->output->verbose( CALL_INFO, 3, 0, "Function[%" PRId32 "] Done\n", static_cast<int>(fnum) );
       break;
   }
 }

@@ -4,6 +4,12 @@ This project provides a set of SST components that provide methods to model Proc
 
 The PIM provides a user extensible finite state machine (FSM) that allows sequencing access to/from a region of DRAM and to/from a local SRAM.
 
+## Supported Platforms
+
+Tested on the following platforms
+- MacOS Darwin Kernel Version 23.6.0 arm64
+- Redhat 4.18.0-477.10.1.el8_8.x86_64 #1 SMP x86_64
+- Ubuntu 5.15.0-122-generic #132-Ubuntu SMP  x86_64
 
 ## Getting Started
 
@@ -17,22 +23,23 @@ mkdir build
 cd build
 cmake ../
 make -j -s
+make install
 ctest
 ```
 
-## Application Examples
+## REV Application Examples
 
 ```
 cd test/pim
 make clean
 make
-cat rev-output/rev-test-src/appTest2/run.revlog
-cat rev-output/rev-test-src/userfunc/run.revlog
+cat rev-output/checkdram/run.revlog
+cat rev-output/userfunc/run.revlog
 ls rev-test-src
 ```
 
 These tests demonstrate both software and hardware algorithms:
-- appTest2.cpp: memcpy function in hardware.
+- checkdram.cpp: memcpy (dram to dram) function in hardware.
 - userfunc.cpp: scalar-vector multiply function.
 
 The tests can be modified at compile time by modifying these lines of the source code:
@@ -47,19 +54,16 @@ The finite state machines (FSMs) are in sstcomp/PIMBackend:
 - tclpim_functions.*: built-in functions
 - userpim_functions.*: user provided functions
 
-# TODO
+## Appx (Application Driver) Examples
 
-## Linker Script
-- Link to standard libraries so we can parse command link arguments.
-- Eliminate initialization of global memory segments in the linker script.
+The application driver replaces the REV CPU with application code compiled on that host and loaded as a Miranda subcomponent.
+This provides an efficient methods to test the PIM independently of the REV CPU. 
 
-## PIM FSM
-- Modify FSMs to buffer data in the SRAM. The current code sequences DRAM reads and writes for DMA operation but all calculations on the data are done in the same clock. In real hardware the data needs to be buffered which implies additional states.
-
-## REV/Tests/Demos
-- Add demo code to show REV core accessing SRAM.
-- REV PR for fast print operation so we can all use the 'devel' branch.
-
-## SST Configuration
-- Control regions for Cachability. Currently all REV accesses are non-cachable. Good for latency but it does not represent real-world hardware.
+```
+cd test/pim
+export APPX=1
+make clean
+make
+cat appx-output/AppxTest/run.log
+```
 

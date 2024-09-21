@@ -22,6 +22,7 @@ public:
   bool     clock( SST::Cycle_t ) override;
   uint64_t getCycle() override;
   bool     isMMIO( uint64_t addr ) override;
+  PIMDecodeInfo  getDecodeInfo( uint64_t addr);
   // IO access functions
   void read( Addr, uint64_t numBytes, std::vector<uint8_t>& ) override;
   void write( Addr, uint64_t numBytes, std::vector<uint8_t>* ) override;
@@ -43,7 +44,7 @@ public:
     std::shared_ptr<FSM> exec_ = nullptr;
     uint64_t params[NUM_FUNC_PARAMS] = {0};
     FSTATE fstate = FSTATE::INVALID;
-    bool lock = false;
+    // TODO bool lock = false;
     int counter = 0;
 
   }; // class FuncState
@@ -55,7 +56,7 @@ private:
 
   // memory mapped IO
   std::vector<std::shared_ptr<PIMMemSegment>> PIMSegs;
-  uint64_t             spdArray[8] = { 0 };
+  uint64_t             sramArray[SRAM_SIZE/sizeof(uint64_t)] = { 0 };
   std::deque<uint64_t> ctl_ops;
   void                 function_write( uint64_t data );
   uint64_t             decodeFuncNum( uint64_t address, unsigned numBytes );

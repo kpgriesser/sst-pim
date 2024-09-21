@@ -20,7 +20,7 @@ using namespace SST::MemHierarchy;
 
 namespace SST::PIM {
 
-static uint64_t getPayload( std::vector<uint8_t> payload );
+// TODO static uint64_t getPayload( std::vector<uint8_t> payload );
 
 struct PIMReq_t {
   PIMReq_t( MemBackend::ReqId _id, Addr _addr, bool _isWrite, unsigned _numBytes, MemEventBase::dataVec _payload );
@@ -87,7 +87,7 @@ private:
 
   // memory mapped IO
   std::vector<std::shared_ptr<PIMMemSegment>> PIMSegs;
-  uint64_t                                   spdArray[8] = { 0 };
+  uint64_t                                   sramArray[8] = { 0 };
   uint64_t                                   ctl_buf     = 0;
   uint64_t                                   ctl_event   = 0;
   std::deque<uint64_t>                       ctl_ops;

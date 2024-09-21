@@ -148,8 +148,8 @@ bool PIMBackend::clock( Cycle_t cycle ) {
 
   if( pimsim && !initDRAMDone ) {
     initDRAMDone                 = true;
-    this->output->verbose(CALL_INFO, 3, 0, "Running initial scratch pad test\n");
-    // Write test data to scratch pad base + 64
+    this->output->verbose(CALL_INFO, 3, 0, "Running initial PIM memory test\n");
+    // Write test data to SRAM base + 64
     MemEventBase::dataVec wrData = { 0x10, 0x32, 0x54, 0x76, 0x98, 0xba, 0xdc, 0xfe };
     MemEvent*             evw    = new MemEvent( getName(), spdBase + 64, spdBase + 64, PIM_WRITE, wrData );
     evw->setFlags( MemEvent::F_NONCACHEABLE | MemEvent::F_NORESPONSE );
@@ -210,7 +210,7 @@ void PIMBackend::handlePIMCompletion( SST::Event* resp ) {
       size_t                sz  = mev->getPayloadSize();
       MemEventBase::dataVec vec = mev->getPayload();
       uint8_t*              p   = (uint8_t*) &payload;
-      for( int i = 0; i < sz; i++ ) {
+      for( size_t i = 0; i < sz; i++ ) {
         p[i] = vec[i];
       }
     }
@@ -250,6 +250,11 @@ void PIMBackend::handleMMIOWriteCompletion( SST::Event* ev ) {
   MemEvent* mev = static_cast<MemEvent*>( ev );
   // write event payload to PIM
   buffer        = mev->getPayload();
+  // TODO: Fix elf / linker / loader to not write initial values to MMIO ranges to avoid side effects
+  if (mev->getSize() !=8 ) {
+    pimOutput.verbose(CALL_INFO, 3, 0, "Warning: Dropping MMIO write to function handler with numBytes=%" PRIx32 "\n", mev->getSize() );
+    return;
+  }
   pimsim->write( mev->getAddr(), mev->getSize(), &buffer );
   pimOutput.verbose(CALL_INFO,3,0,"MMIO write a=0x%" PRIx64 " d[0]=%" PRId32 "\n", mev->getAddr(), (int)buffer[0]);
 }

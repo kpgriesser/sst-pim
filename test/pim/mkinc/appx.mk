@@ -17,6 +17,9 @@ OUTDIR = appx-output
 # Test Selection
 PIM_TESTS += AppxTest
 
+#TODO noncacheable regions for Miranda then remove this
+export FORCE_NONCACHEABLE_REQS=1
+
 # PIM MPI tests
 # PIM_MPI_TESTS += 
 

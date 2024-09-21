@@ -43,7 +43,7 @@ const std::map<PIM_FUNCTION_CONTROL, std::string> PIM_OFFSET2string{
 
 class PIMMemSegment {
 public:
-  PIMMemSegment( PIM_ACCESS_TYPE pimAccType, uint64_t baseAddr, uint64_t size ) : PIM_ACCESS_TYPE( pimAccType ), BaseAddr( baseAddr ), Size( size ) {
+  PIMMemSegment( PIM_ACCESS_TYPE pimAccType, uint64_t baseAddr, uint64_t size ) : pimAccessType( pimAccType ), BaseAddr( baseAddr ), Size( size ) {
     TopAddr = baseAddr + size;
   } 
 
@@ -61,20 +61,20 @@ public:
   /// PIMMemSegment: Check if vAddr is included in this segment
   PIM_ACCESS_TYPE decode( const uint64_t& vAddr ) {
     if( vAddr >= BaseAddr && vAddr < TopAddr )
-      return this->PIM_ACCESS_TYPE;
+      return this->pimAccessType;
     return PIM_ACCESS_TYPE::NONE;
   };
 
-  PIM_ACCESS_TYPE getType() { return this->PIM_ACCESS_TYPE; }
+  PIM_ACCESS_TYPE getType() { return this->pimAccessType; }
 
   // Override for easy std::cout << *Seg << std::endl;
   friend std::ostream& operator<<( std::ostream& os, const PIMMemSegment& Seg ) {
-    return os << " | PIMTYPE: " << PIMTYPE2string.at( Seg.PIM_ACCESS_TYPE ) << " | BaseAddr:  0x" << std::hex << Seg.getBaseAddr()
+    return os << " | PIMTYPE: " << PIMTYPE2string.at( Seg.pimAccessType ) << " | BaseAddr:  0x" << std::hex << Seg.getBaseAddr()
               << " | TopAddr: 0x" << std::hex << Seg.getTopAddr() << " | Size: " << std::dec << Seg.getSize() << " Bytes";
   }
 
 private:
-  PIM_ACCESS_TYPE   PIM_ACCESS_TYPE;
+  PIM_ACCESS_TYPE pimAccessType;
   uint64_t BaseAddr;
   uint64_t Size;
   uint64_t TopAddr;

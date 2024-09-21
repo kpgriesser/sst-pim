@@ -50,6 +50,8 @@ void PIMMemController::handleEvent( SST::Event* event ) {
     if( mmio_decoder->decode( ev->getAddr() ).isIO ) {
       ev->setFlag( PIMMemEvent::F_MMIO );
       this->out.verbose(CALL_INFO, 3, 0, "Received MMIO event %s\n", ev->toString().c_str());
+      // All MMIO must be non-cachable accesses 
+      assert(ev->queryFlag ( MemEventBase::F_NONCACHEABLE ));
     }
   }
   MemControllerKG::handleEvent( event );

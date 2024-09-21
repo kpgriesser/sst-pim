@@ -75,6 +75,11 @@ timing_params = {
 # User configuration settings
 #
 
+
+# REV machine type
+ARCH = os.getenv("ARCH","rv64g_zicntr")
+
+# Application Driver Test
 APP = os.getenv("APP")
 if APP:
     print(f"APP={APP}")
@@ -85,10 +90,10 @@ if INTERLEAVE not in SUPPORTED_INTERLEAVING:
     sys.exit(f"INTERLEAVE must be one of: {SUPPORTED_INTERLEAVING}")
 print(f"INTERLEAVE={INTERLEAVE}")
 
+# Command line arguments for elf
 ARGS = os.getenv("ARGS","");
 
-# TODO Add directory, enable non-cacheable regions, default this to 0
-FORCE_NONCACHEABLE_REQS = os.getenv("FORCE_NONCACHEABLE_REQS",1)
+FORCE_NONCACHEABLE_REQS = os.getenv("FORCE_NONCACHEABLE_REQS",0)
 print(f"FORCE_NONCACHEABLE_REQS={FORCE_NONCACHEABLE_REQS}")
 
 # Memory: 0x0000_0400_0000_0000
@@ -162,11 +167,11 @@ rev_params = {
     "clock" : timing_params['global_clock'],
                                                      # Adjust top of memory per stack
     "maxHeapSize" : (1024*1024*1024)>>4,             # Default is 1/4 mem size
-    "machine" : "[CORES:RV64GC]",                    # Core:Config
+    "machine" : f"[CORES:{ARCH}]",                   # Core:Config
     "memCost" : "[0:1:10]",                          # Memory loads required 1-10 cycles
     "program" : os.getenv("REV_EXE", "sanity.exe"),  # Target executable
-    "enable_memH" : 1,                               # Enable memHierarchy support
-    "trcStartCycle" : 1,                             # Begin cycle for tracing
+    "enableMemH" : 1,                                # Enable memHierarchy support
+    #"trcStartCycle" : 1,                            # Begin cycle for tracing
     #"trcLimit" : 100,                               # End cycle for tracing
     "splash" : 0,                                    # Display the splash message
 }
@@ -201,6 +206,12 @@ l1cache_params = {
     "verbose" : verbose['l1'],
     "force_noncacheable_reqs" : FORCE_NONCACHEABLE_REQS,
     "replacement_policy" : "lru",
+}
+
+PIM_REGION_BASE=0x0E000000             # FUNC_BASE
+PIM_REGION_BOUND=0x0f800000+0x00100000 # DRAM_BASE + DRAM_SIZE
+l1cache_ifc_params = {
+    "noncacheable_regions": [PIM_REGION_BASE, PIM_REGION_BOUND-1]
 }
 
 l2cache_params = {
@@ -313,6 +324,7 @@ class REV_CPU():
         self.revmemctrl.addParams(revmemctrl_params)
         # Rev Memory Interface
         self.ifc = self.revmemctrl.setSubComponent("memIface", "memHierarchy.standardInterface")
+        self.ifc.addParams(l1cache_ifc_params)
         # L1 Cache
         self.l1 = sst.Component(f"l1_{cpu_num}", "memHierarchy.Cache")
         self.l1.addParams(l1cache_params)
@@ -341,6 +353,9 @@ class APP_CPU():
         self.comp.addParams(miranda_params)
         self.comp.addParams( { "args" : cpu_args } )
         print(f"APP_CPU[{cpu_num}] args={cpu_args}")
+
+        # TODO: non-cacheable ranges for L1 interface then remove FORCE_NONCACHEABLE_REQS from mkinc/appx.mk
+
         # Miranda application transactor / generator
         self.gen = self.comp.setSubComponent("generator", f"AppGen.{APP}")
         self.gen.addParams(miranda_params)

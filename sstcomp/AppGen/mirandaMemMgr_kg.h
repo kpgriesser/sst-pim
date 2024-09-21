@@ -114,7 +114,7 @@ public:
       }
 
       // Copy temp data in SharedArray
-      for( int i = 0; i < pageCount; ++i ) {
+      for( unsigned i = 0; i < pageCount; ++i ) {
         pageMap.write( i, pageArr[i] );
       }
       free( pageArr );

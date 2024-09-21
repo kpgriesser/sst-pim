@@ -9,11 +9,11 @@
 #
 
 # PIM Type (0:none, 1:test, 2:reserved, 3:tclpim)
-export PIM_TYPE=3
+PIM_TYPE?=3
 
 # REV paths
 REVLIBPATH ?= $(PIM_REV_HOME)/build/src
-REVPRINT ?= $(PROJHOME)/scripts/rev-print.sh
+REVPRINT ?= $(PIM_REV_HOME)/scripts/rev-print.py
 
 # Test source code
 SRCDIR = ./rev-test-src
@@ -25,7 +25,7 @@ SSTOPTS += --add-lib-path=$(REVLIBPATH)
 OUTDIR = rev-output
 
 # Test Selection
-PIM_TESTS += $(basename $(wildcard rev-test-src/*.cpp))
+PIM_TESTS += $(notdir $(basename $(wildcard $(SRCDIR)/*.cc)))
 
 # PIM MPI tests
 # PIM_MPI_TESTS += 
@@ -39,7 +39,7 @@ endif
 TLIST ?= $(ALL_TESTS)
 
 # REV Executables
-SRCS   := $(basename $(notdir $(wildcard $(SRCDIR)/*.cpp)))
+SRCS   := $(basename $(notdir $(wildcard $(SRCDIR)/*.cc)))
 EXES   := $(addprefix $(OUTDIR)/bin/,$(addsuffix .exe,$(SRCS)))
 DIASMS := $(patsubst %.exe,%.dis,$(EXES))
 SECTIONS := $(patsubst %.exe,%.sections,$(EXES))
@@ -57,10 +57,11 @@ compile: $(EXES) $(DIASMS)
 # Rev toolchain
 CC=riscv64-unknown-elf-g++
 LD=riscv64-unknown-elf-ld
+RVOBJDUMP=riscv64-unknown-elf-objdump
 OBJDUMP   = ${RVOBJDUMP} --source -l -dC -Mno-aliases
 
 # Rev headers
-INCLUDE  += -I$(PIM_REV_HOME)/common/syscalls
+INCLUDE  := -I$(PIM_REV_HOME)/common/syscalls
 INCLUDE  += -I$(PIM_REV_HOME)/test/include
 
 # PIM headers
@@ -83,7 +84,7 @@ WFLAGS    += -Wno-unused-function -Wno-unused-parameter
 #WFLAGS    += -Werror
 # DEBUG_FLAGS := -DDEBUG_MODE
 FLAGS     := $(CCOPT) $(WFLAGS) $(DEBUG_FLAGS) -static -lm -fpermissive
-ARCH      := rv64gc
+ARCH      := rv64g
 # ABI       := -mabi=lp64d
 
 # Test Specific Customization
@@ -100,7 +101,7 @@ ARCH      := rv64gc
 	@$(eval pdffile = $(basename $@).pdf)
 	@rm -f $(statf) $(dotfile) $(pdffile)
 	@echo Running $(basename $@)
-	$(OPTS) OUTPUT_DIRECTORY=$(@D) ARCH=$(ARCH) REV_EXE=$(exe) \
+	$(OPTS) PIM_TYPE=$(PIM_TYPE) OUTPUT_DIRECTORY=$(@D) ARCH=$(ARCH)_zicntr REV_EXE=$(exe) \
  $(MPIOPTS) $(SST) $(SSTOPTS) \
  --output-json=$(@D)/rank.json $(SSTCFG) \
   > $@ && (echo "pass" > $(statf); $(DOT2PDF))
@@ -110,7 +111,7 @@ ARCH      := rv64gc
 # 	@echo "### " $@":" `cat $(statf)`
 
 %.revlog: %.log
-	@ $(REVPRINT) $< > $@
+	@ $(REVPRINT) -l $< > $@
 
 %.dis: %.exe
 	$(OBJDUMP) $< > $@
@@ -118,18 +119,20 @@ ARCH      := rv64gc
 %.sections: %.exe
 	${RVOBJDUMP} -s $< > $@
 
+# NO_LINK = 1
+ifndef NO_LINK
 $(OUTDIR)/bin/%.exe: $(OUTDIR)/bin/%.o $(SRCDIR)/pim.lds
 	$(LD) -o $@ -T $(SRCDIR)/pim.lds $<
 
-$(OUTDIR)/bin/%.o: $(SRCDIR)/%.cpp
+$(OUTDIR)/bin/%.o: $(SRCDIR)/%.cc
 	@mkdir -p $(@D)
 	$(CC) $(FLAGS) -o $@ -g -c $< -march=$(ARCH) $(ABI) $(INCLUDE) $(LIBS)
+else
+$(OUTDIR)/bin/%.exe: $(SRCDIR)/%.cc
+	@mkdir -p $(@D)
+	$(CC) $(FLAGS) -g -march=$(ARCH) $(ABI) $(INCLUDE) -o $@ $<
+endif
 
-# workaround for rev_openat on ubuntu
-.PHONY: %.dat
-%.dat:
-	mkdir $(@D)
-	touch $@
 
 clean:
 	rm -rf $(OUTDIR)
@@ -146,6 +149,6 @@ help:
 
 .SECONDARY:
 
-.PRECIOUS: %.log
+.PRECIOUS: %.log %.revlog
 
 #-- EOF

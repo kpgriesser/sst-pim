@@ -579,7 +579,7 @@ bool RequestGenCPU_KG::clockTick( SST::Cycle_t cycle ) {
 
   // We need to generate at least as many requests as can be looked up in the OoO window
   // otherwise the issue will have starvation.
-  for( int i = pendingRequests.size(); i < maxOpLookup; ++i ) {
+  for( unsigned i = pendingRequests.size(); i < maxOpLookup; ++i ) {
     if( reqGen->isFinished() ) {
       break;
     } else {

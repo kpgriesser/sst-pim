@@ -24,7 +24,7 @@ void MulVecByScalar::start( uint64_t params[NUM_FUNC_PARAMS] ) {
   dma_state    = DMA_STATE::READ;
   parent->output->verbose(
     CALL_INFO, 3, 0, 
-    "MulVecByScalar: dst=0x%" PRIx64 " src=0x%" PRIx64 "scalar=" PRId64 " total_words=%" PRId64 "\n", 
+    "MulVecByScalar: dst=0x%" PRIx64 " src=0x%" PRIx64 "scalar=%" PRId64 " total_words=%" PRId64 "\n", 
     dst, src, scalar, total_words);
 }
 
@@ -45,7 +45,7 @@ bool MulVecByScalar::clock() {
       // TODO use SRAM to save intermediate data
       // TODO better utilities for manage the SST payload
       // For now multiply every dword loaded by the scalar (messy)
-      for( int i = 0; i < d.size(); i+=8 ) {
+      for( size_t i = 0; i < d.size(); i+=8 ) {
         uint64_t data = 0;
         uint8_t* p = (uint8_t*)(&data);
         for ( int j=0; j<8; j++) {
